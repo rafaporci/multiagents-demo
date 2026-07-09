@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    color: #0f172a;
+    background: #ffffff;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  button {
+    font-family: inherit;
+  }
+
+  /* Visible focus ring fallback for elements that don't get a custom one */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #2f5d9f;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .container-page {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 768px) {
+    .container-page {
+      padding-inline: 40px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .container-page {
+      padding-inline: 64px;
+    }
+  }
+
+  /*
+   * Nav bar's own row container. Same shape as .container-page (1280px max,
+   * centered, 20px mobile / 64px desktop side padding) but with a tighter
+   * 24px side padding in the 768-1279px tablet band specifically. At 40px
+   * (the sitewide tablet value), the wordmark + 5 links + "Book a Call" no
+   * longer fit on one line once real webfonts load, causing the nav to wrap
+   * and grow past its fixed 72px height (see TEST_REPORT.md Bug #3). The
+   * nav's own layout spec (5.1) doesn't tie its side padding to the generic
+   * container rule, so trimming it here — combined with a tighter tablet
+   * link gap and a slightly more compact CTA button — reclaims just enough
+   * width to keep everything on one line, which is the behavior 5.1 actually
+   * calls for ("full nav bar shows... link gap reduces to fit").
+   */
+  .nav-container {
+    width: 100%;
+    max-width: 1280px;
+    margin-inline: auto;
+    padding-inline: 20px;
+  }
+
+  @media (min-width: 768px) {
+    .nav-container {
+      padding-inline: 24px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .nav-container {
+      padding-inline: 64px;
+    }
+  }
+}
