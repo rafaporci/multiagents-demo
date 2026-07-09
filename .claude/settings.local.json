@@ -9,21 +9,20 @@
       "Bash(npx vitest *)",
       "Bash(npm install *)",
       "Bash(npx playwright *)",
-      "Bash(rm -f pw-check.tmp.mjs pw-pricing-order.mjs pw-screens.mjs pw-nav-crop.mjs pw-nav-crop2.mjs pw-nav-range.mjs shot-375.png shot-768.png shot-1280.png shot-768-nav.png shot-768-nav2.png debug-mobile-menu.png debug-nav-gap-1280.png)",
+      "Bash(rm -f pw-*.mjs shot*.png debug*.png)",
       "Bash(rm -rf test-results)",
       "Bash(npm test *)",
       "Bash(npm run *)",
       "Bash(powershell -Command 'Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -eq '\\\\'''\\\\'' } | Select-Object Id,ProcessName')",
       "Bash(netstat -ano)",
-      "Bash(powershell -Command \"Stop-Process -Id 28132 -Force -ErrorAction SilentlyContinue; Stop-Process -Id 32180 -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; netstat -ano | Select-String ':5173.*LISTENING'\")",
-      "Bash(rm -f verify-fixes.mjs verify-mobile-menu.png)",
       "Bash(rm -rf test-results playwright-report)",
       "PowerShell($conn = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue; if \\($conn\\) { $conn | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; \"stopped\" } else { \"no listener found\" })",
       "Bash(grep -E \"\\\\.mjs$|shot-|debug-|verify-\")",
       "Bash(rm -f PROMPT)",
       "Bash(mkdir -p \"c:/Projects/multiagents-demo/.claude/agents\")",
-      "Write(.claude/agents/*)",
-      "Edit(.claude/agents/*)"
+      "PowerShell(if \\($?\\) { \"VALID JSON\" })",
+      "Write(**)",
+      "Edit(**)"
     ],
     "additionalDirectories": [
       "c:\\Projects\\multiagents-demo\\.claude"
