@@ -1,18 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import AnchorMark from '../ui/AnchorMark.jsx';
 import Button from '../ui/Button.jsx';
 import useSmoothScrollTo from '../../hooks/useSmoothScrollTo.js';
 import useScrollSpy from '../../hooks/useScrollSpy.js';
 
+// 6 links per spec §8.2: FAQ is inserted immediately before Contact. `isRoute`
+// marks the one entry that is a real page (`/faq`) rather than an in-page
+// anchor id, so it can be given different render/active-state logic below.
 const NAV_LINKS = [
   { label: 'Services', id: 'services' },
   { label: 'How It Works', id: 'how-it-works' },
   { label: 'Results', id: 'results' },
   { label: 'Pricing', id: 'pricing' },
+  { label: 'FAQ', id: 'faq', isRoute: true },
   { label: 'Contact', id: 'contact' },
 ];
+
+const SCROLL_SPY_IDS = NAV_LINKS.filter((l) => !l.isRoute).map((l) => l.id);
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
@@ -21,9 +28,18 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const scrollTo = useSmoothScrollTo();
-  const activeId = useScrollSpy(NAV_LINKS.map((l) => l.id));
+  const activeId = useScrollSpy(SCROLL_SPY_IDS);
   const menuRef = useRef(null);
   const hamburgerRef = useRef(null);
+  const location = useLocation();
+
+  // Spec §8.2: the same NAV_LINKS-driven list renders differently depending
+  // on the current route. On "/" the 5 non-FAQ links are in-page smooth
+  // scroll anchors with scroll-spy; on "/faq" they become real navigations
+  // back to "/" (landing on the matching section via LandingPage's hash
+  // effect, spec §8.1), and never show the active/current underline since
+  // scroll-spy has nothing to track on this route.
+  const isFaqRoute = location.pathname === '/faq';
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -100,6 +116,78 @@ export default function Navbar() {
     setMenuOpen(false);
   };
 
+  const closeMenu = () => setMenuOpen(false);
+
+  const linkClasses = (isActive) =>
+    `relative text-sm font-medium py-1 whitespace-nowrap rounded transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary ${
+      isActive
+        ? 'text-brand-primary after:content-[""] after:absolute after:left-0 after:right-0 after:-bottom-[7px] after:h-[2px] after:bg-brand-primary'
+        : 'text-gray-700 hover:text-brand-primary'
+    }`;
+
+  const mobileLinkClasses =
+    'font-heading font-semibold text-2xl text-gray-900 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary';
+
+  // Renders one desktop/tablet nav link per the route-aware table in §8.2.
+  const renderDesktopLink = (link) => {
+    if (link.isRoute) {
+      // FAQ: always a real route Link. Shows the current-page active state
+      // (brand-primary text + underline) only when already on /faq; never
+      // active on "/".
+      return (
+        <Link
+          to="/faq"
+          aria-current={isFaqRoute ? 'page' : undefined}
+          className={linkClasses(isFaqRoute)}
+        >
+          {link.label}
+        </Link>
+      );
+    }
+    if (isFaqRoute) {
+      // On /faq, the other 5 links become real navigations back to "/",
+      // landing on their section via the hash-scroll effect (§8.1). Never
+      // show the active underline here — no scroll-spy target exists.
+      return (
+        <Link to={`/#${link.id}`} className={linkClasses(false)}>
+          {link.label}
+        </Link>
+      );
+    }
+    return (
+      <a
+        href={`#${link.id}`}
+        onClick={handleNavClick(link.id)}
+        aria-current={activeId === link.id ? 'true' : undefined}
+        className={linkClasses(activeId === link.id)}
+      >
+        {link.label}
+      </a>
+    );
+  };
+
+  const renderMobileLink = (link) => {
+    if (link.isRoute) {
+      return (
+        <Link to="/faq" onClick={closeMenu} className={mobileLinkClasses}>
+          {link.label}
+        </Link>
+      );
+    }
+    if (isFaqRoute) {
+      return (
+        <Link to={`/#${link.id}`} onClick={closeMenu} className={mobileLinkClasses}>
+          {link.label}
+        </Link>
+      );
+    }
+    return (
+      <a href={`#${link.id}`} onClick={handleNavClick(link.id)} className={mobileLinkClasses}>
+        {link.label}
+      </a>
+    );
+  };
+
   return (
     <header
       className={`fixed top-0 inset-x-0 z-50 h-16 md:h-[72px] bg-white/[0.92] backdrop-blur-sm transition-shadow duration-150 ${
@@ -110,17 +198,30 @@ export default function Navbar() {
         aria-label="Primary"
         className="nav-container h-full flex items-center justify-between"
       >
-        <a
-          href="#hero"
-          onClick={handleNavClick('hero')}
-          className="flex items-center gap-2 font-heading font-bold text-xl whitespace-nowrap rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
-        >
-          <AnchorMark color="#2F5D9F" size={32} />
-          <span>
-            <span className="text-gray-900">Anchorpoint</span>{' '}
-            <span className="text-brand-primary">AI</span>
-          </span>
-        </a>
+        {isFaqRoute ? (
+          <Link
+            to="/#hero"
+            className="flex items-center gap-2 font-heading font-bold text-xl whitespace-nowrap rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+          >
+            <AnchorMark color="#2F5D9F" size={32} />
+            <span>
+              <span className="text-gray-900">Anchorpoint</span>{' '}
+              <span className="text-brand-primary">AI</span>
+            </span>
+          </Link>
+        ) : (
+          <a
+            href="#hero"
+            onClick={handleNavClick('hero')}
+            className="flex items-center gap-2 font-heading font-bold text-xl whitespace-nowrap rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
+          >
+            <AnchorMark color="#2F5D9F" size={32} />
+            <span>
+              <span className="text-gray-900">Anchorpoint</span>{' '}
+              <span className="text-brand-primary">AI</span>
+            </span>
+          </a>
+        )}
 
         {/* Desktop / tablet: links + CTA grouped together with a fixed 24px
             gap between them (spec 5.1), independent of how much leftover
@@ -128,26 +229,30 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-6">
           <ul className="flex items-center gap-3 lg:gap-8">
             {NAV_LINKS.map((link) => (
-              <li key={link.id}>
-                <a
-                  href={`#${link.id}`}
-                  onClick={handleNavClick(link.id)}
-                  aria-current={activeId === link.id ? 'true' : undefined}
-                  className={`relative text-sm font-medium py-1 whitespace-nowrap rounded transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary ${
-                    activeId === link.id
-                      ? 'text-brand-primary after:content-[""] after:absolute after:left-0 after:right-0 after:-bottom-[7px] after:h-[2px] after:bg-brand-primary'
-                      : 'text-gray-700 hover:text-brand-primary'
-                  }`}
-                >
-                  {link.label}
-                </a>
-              </li>
+              <li key={link.id}>{renderDesktopLink(link)}</li>
             ))}
           </ul>
 
-          <Button variant="primary" compact onClick={handleNavClick('contact')} className="whitespace-nowrap">
-            Book a Call
-          </Button>
+          {isFaqRoute ? (
+            <Button
+              as={Link}
+              to="/#contact"
+              variant="primary"
+              compact
+              className="whitespace-nowrap"
+            >
+              Book a Call
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              compact
+              onClick={handleNavClick('contact')}
+              className="whitespace-nowrap"
+            >
+              Book a Call
+            </Button>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -185,21 +290,19 @@ export default function Navbar() {
           >
             <ul className="flex flex-col items-center gap-8">
               {NAV_LINKS.map((link) => (
-                <li key={link.id}>
-                  <a
-                    href={`#${link.id}`}
-                    onClick={handleNavClick(link.id)}
-                    className="font-heading font-semibold text-2xl text-gray-900 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
-                  >
-                    {link.label}
-                  </a>
-                </li>
+                <li key={link.id}>{renderMobileLink(link)}</li>
               ))}
             </ul>
             <div className="w-full max-w-sm mt-12">
-              <Button variant="primary" fullWidth onClick={handleNavClick('contact')}>
-                Book a Call
-              </Button>
+              {isFaqRoute ? (
+                <Button as={Link} to="/#contact" variant="primary" fullWidth onClick={closeMenu}>
+                  Book a Call
+                </Button>
+              ) : (
+                <Button variant="primary" fullWidth onClick={handleNavClick('contact')}>
+                  Book a Call
+                </Button>
+              )}
             </div>
           </div>,
           document.body

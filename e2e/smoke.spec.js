@@ -151,3 +151,98 @@ test.describe('Accessibility', () => {
     }
   });
 });
+
+test.describe('FAQ page (spec §8)', () => {
+  test('direct navigation / hard refresh on /faq does not 404 (SPA fallback)', async ({ page }) => {
+    const response = await page.goto('/faq');
+    expect(response.status()).toBeLessThan(400);
+    await expect(page.locator('h1')).toHaveText('Straight answers before you book a call.');
+    await page.reload();
+    expect((await page.title())).toBe('FAQ — Anchorpoint AI');
+  });
+
+  test('exactly one H1 and no skipped heading levels on /faq', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.goto('/faq');
+    const headings = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6')).map((h) => Number(h.tagName[1]))
+    );
+    expect(headings.filter((l) => l === 1).length).toBe(1);
+    let prev = 1;
+    for (const level of headings) {
+      expect(level, `heading level jumped from h${prev} to h${level}`).toBeLessThanOrEqual(prev + 1);
+      prev = level;
+    }
+  });
+
+  test('clicking the Navbar "FAQ" link navigates to /faq and focuses the H1', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/');
+    await page.locator('nav[aria-label="Primary"] ul a', { hasText: 'FAQ' }).click();
+    await expect(page).toHaveURL(/\/faq$/);
+    await expect(page.locator('h1')).toBeFocused();
+  });
+
+  test('an accordion row expands on click, updates aria-expanded, and multiple rows stay open', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.goto('/faq');
+    const first = page.getByRole('button', { name: /do you offer a free trial\?/i });
+    const second = page.getByRole('button', { name: /what happens when my audit engagement ends\?/i });
+
+    await expect(first).toHaveAttribute('aria-expanded', 'false');
+    await first.click();
+    await expect(first).toHaveAttribute('aria-expanded', 'true');
+
+    await second.click();
+    await expect(first).toHaveAttribute('aria-expanded', 'true');
+    await expect(second).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('Home/End move focus to the first/last trigger across all 3 categories', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.goto('/faq');
+    const triggers = page.getByRole('button', { name: /\?$/ });
+    await expect(triggers).toHaveCount(14);
+
+    await triggers.nth(5).focus();
+    await page.keyboard.press('End');
+    await expect(triggers.nth(13)).toBeFocused();
+
+    await page.keyboard.press('Home');
+    await expect(triggers.nth(0)).toBeFocused();
+  });
+
+  test('clicking "Book a Free Agent Audit" in the closing CTA navigates to / and scrolls to the contact form', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.goto('/faq');
+    await page.getByRole('link', { name: /book a free agent audit/i }).click();
+    await expect(page).toHaveURL(/\/#contact$/);
+    // A cross-page CTA click here does a full route transition (FaqPage
+    // unmounts, LandingPage mounts, then the hash-scroll effect in §8.1
+    // fires), so allow a little more settle time and vertical tolerance
+    // than the same-page anchor-click smooth-scroll checks above.
+    await page.waitForTimeout(1500);
+    const box = await page.locator('#contact').boundingBox();
+    expect(box.y).toBeGreaterThanOrEqual(-10);
+    expect(box.y).toBeLessThanOrEqual(200);
+  });
+
+  test('Footer "FAQ" resource link navigates to /faq', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.goto('/');
+    await page.locator('footer a', { hasText: 'FAQ' }).click();
+    await expect(page).toHaveURL(/\/faq$/);
+  });
+
+  for (const width of [375, 768, 1280]) {
+    test(`no horizontal overflow on /faq at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1200 });
+      await page.goto('/faq');
+      const { scrollWidth, clientWidth } = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      }));
+      expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+    });
+  }
+});

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Linkedin } from 'lucide-react';
 import AnchorMark from '../ui/AnchorMark.jsx';
 import useSmoothScrollTo from '../../hooks/useSmoothScrollTo.js';
@@ -10,7 +11,14 @@ const COMPANY_LINKS = [
   { label: 'Pricing', id: 'pricing' },
 ];
 
-const RESOURCE_LINKS = ['Blog', 'Case Studies', 'FAQ'];
+// Spec §8.3: the "FAQ" entry becomes a real route Link; the other two
+// Resources links have no destination page in scope (see
+// IMPLEMENTATION_NOTES.md), so they stay inert `href="#"` placeholders.
+const RESOURCE_LINKS = [
+  { label: 'Blog', href: '#' },
+  { label: 'Case Studies', href: '#' },
+  { label: 'FAQ', to: '/faq' },
+];
 const LEGAL_LINKS = ['Privacy Policy', 'Terms of Service'];
 
 function XGlyph({ size = 20, color = 'currentColor' }) {
@@ -88,16 +96,37 @@ function NewsletterForm() {
 
 export default function Footer() {
   const scrollTo = useSmoothScrollTo();
+  const location = useLocation();
+  // Spec §8.3: Footer is shared chrome rendered on both routes, so its
+  // section-anchor links get the same route-aware treatment as the Navbar's
+  // equivalent links (§8.2) — in-page smooth scroll on "/", real navigation
+  // back to "/" (landing via LandingPage's hash effect, §8.1) on "/faq".
+  const isFaqRoute = location.pathname === '/faq';
+  const linkClasses = 'font-body text-sm text-gray-300 hover:text-white hover:underline';
 
   return (
     <footer className="bg-gray-900 text-gray-300">
       <div className="container-page pt-16 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 lg:gap-12">
           <div className="md:col-span-3 lg:col-span-1">
-            <a href="#hero" onClick={scrollTo('hero')} className="inline-flex items-center gap-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-              <AnchorMark color="#FFFFFF" size={28} />
-              <span className="font-heading font-bold text-lg text-white">Anchorpoint AI</span>
-            </a>
+            {isFaqRoute ? (
+              <Link
+                to="/#hero"
+                className="inline-flex items-center gap-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                <AnchorMark color="#FFFFFF" size={28} />
+                <span className="font-heading font-bold text-lg text-white">Anchorpoint AI</span>
+              </Link>
+            ) : (
+              <a
+                href="#hero"
+                onClick={scrollTo('hero')}
+                className="inline-flex items-center gap-2 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
+                <AnchorMark color="#FFFFFF" size={28} />
+                <span className="font-heading font-bold text-lg text-white">Anchorpoint AI</span>
+              </a>
+            )}
             <p className="mt-4 font-body text-sm text-gray-400 max-w-xs">
               Agentic AI, grounded in your business.
             </p>
@@ -110,23 +139,31 @@ export default function Footer() {
           <FooterLinkList heading="Company">
             {COMPANY_LINKS.map((link) => (
               <li key={link.id}>
-                <a
-                  href={`#${link.id}`}
-                  onClick={scrollTo(link.id)}
-                  className="font-body text-sm text-gray-300 hover:text-white hover:underline"
-                >
-                  {link.label}
-                </a>
+                {isFaqRoute ? (
+                  <Link to={`/#${link.id}`} className={linkClasses}>
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a href={`#${link.id}`} onClick={scrollTo(link.id)} className={linkClasses}>
+                    {link.label}
+                  </a>
+                )}
               </li>
             ))}
           </FooterLinkList>
 
           <FooterLinkList heading="Resources">
-            {RESOURCE_LINKS.map((label) => (
-              <li key={label}>
-                <a href="#" className="font-body text-sm text-gray-300 hover:text-white hover:underline">
-                  {label}
-                </a>
+            {RESOURCE_LINKS.map((link) => (
+              <li key={link.label}>
+                {link.to ? (
+                  <Link to={link.to} className={linkClasses}>
+                    {link.label}
+                  </Link>
+                ) : (
+                  <a href={link.href} className={linkClasses}>
+                    {link.label}
+                  </a>
+                )}
               </li>
             ))}
           </FooterLinkList>

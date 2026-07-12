@@ -117,3 +117,53 @@ blocks, real webfont metrics, real Tab-key focus movement). Fixed in this pass:
     already-passing, permanent regression test as a side effect of an explicitly low-severity,
     non-blocking fix. Flagging back rather than editing QA's test file myself to make a
     low-priority fix land.
+
+---
+
+## FAQ page addendum (spec §8) — judgment calls
+
+Section 8 is exhaustive about copy, layout, states, and interaction, so this list is short. All of
+it is file-organization/tooling calls the spec explicitly left to the engineer's existing project
+conventions, not visual/behavioral decisions.
+
+18. **File placement.** `FaqPage.jsx` and `LandingPage.jsx` live in `src/components/sections/`
+    alongside the other page-level section components (§8 never names a `pages/` directory, and
+    the existing project has no such folder), keeping one place to look for anything that renders
+    a `<section>`-level piece of a route. `AccordionItem.jsx` lives in `src/components/ui/`
+    alongside `Button.jsx`/`TextLink.jsx`/etc., since it's a shared, reusable primitive rather than
+    page-specific markup — matching the spec's own framing of it as a generic "accordion /
+    disclosure component" in §8.7. `faqData.js` (the 14 Q&A entries + 3 category groupings) is a
+    plain data module, not a component, so it sits next to `FaqPage.jsx` in `sections/` rather than
+    in `ui/`.
+
+19. **`BrowserRouter` future flags.** §8.1 specifies `<BrowserRouter>` but doesn't mention React
+    Router v6.30's opt-in `future` flags. I enabled `v7_startTransition` and `v7_relativeSplatPath`
+    purely to silence v6's forward-compatibility console warnings (both are no-op behavior changes
+    for this app's two static routes) — needed to keep the zero-console-warnings bar from the main
+    brief. This is not an early adoption of v7's data-router APIs, which §8.1 explicitly rules out.
+
+20. **Test setup for the router.** `App.jsx` owns its own `<BrowserRouter>` (per §8.1, it wraps the
+    whole existing render tree), so `src/test/App.test.jsx` and the new `src/test/FaqPage.test.jsx`
+    render the real `<App />` root as-is — no `MemoryRouter` wrapper needed or added. To exercise
+    the `/faq` route in jsdom (which has no real navigation), `FaqPage.test.jsx` calls
+    `window.history.pushState({}, '', path)` immediately before each `render(<App />)`, and resets
+    back to `/` in `afterEach` so route state never leaks between tests. This required no changes
+    to the existing `App.test.jsx` beyond the router wrapper already being present in `App.jsx`
+    itself (that test always rendered at the default `/` history location, which the router wrap
+    doesn't change).
+
+21. **Route-level H1 focus vs. visible focus ring.** §8.8 requires focusing the `<h1>` on
+    navigating to `/faq` via `ref` + `tabIndex={-1}`, but doesn't say whether the (browser-default)
+    focus ring should be visible on that specific programmatic focus call. I suppressed it
+    (`focus:outline-none` on the `<h1>` only) since a focus rectangle around a full-width page
+    title read as a visual glitch rather than a real interactive affordance; the trigger buttons'
+    explicit `focus-visible` treatment (§8.7, unaffected by this) remains the only visible focus
+    ring introduced on this page.
+
+22. **Home/End keyboard-nav data structure.** §8.7 requires Home/End to jump to the first/last
+    trigger "on the whole page," spanning all 3 categories, not just the category currently
+    focused. I implemented this with one page-wide `useRef` array (sized to all 14 questions) owned
+    by `FaqPage` and passed down to every `AccordionItem`, each of which registers itself at its
+    page-wide index — rather than, say, `document.querySelectorAll` at keydown time — to keep the
+    behavior driven by React refs rather than DOM queries, consistent with how the rest of the
+    codebase (e.g. the mobile-menu focus trap) already touches focus management.

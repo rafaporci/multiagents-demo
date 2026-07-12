@@ -491,3 +491,239 @@ This is the only "logo" asset needed; it should be built as a reusable inline SV
 - Component inventory covers nav, primary button, secondary button, generic cards, pricing tile, testimonial card, and all form fields (text input, email input, textarea, submit button) with default/hover/focus/disabled states (plus a loading state for submit, since the form requires it). ✅
 - Imagery direction names the icon library (`lucide-react`), gives a complete icon-to-location map, and fully specifies the one custom illustration (hero graphic) and the one custom glyph (anchor mark) in enough geometric detail to build without further decisions. ✅
 - Every color, font, spacing value, and breakpoint is a specific token/hex/px value — nothing is left as "engineer's choice" except the Tailwind-vs-plain-CSS decision, which is explicitly and intentionally left open per the brief. ✅
+
+---
+
+## 8. FAQ Page
+
+Version 1.1 addendum — extends the landing page spec above with a new FAQ destination. Reuses the palette (Section 2), type system (Section 3), spacing/grid (Section 4), and component patterns already defined (Sections 5–7) without modification. Nothing in Sections 1–7 above changes; this section only adds new content and two small, precisely-specified integration points into the existing `Navbar` and `Footer`.
+
+### 8.1 Integration decision: separate route, not a landing-page section
+
+**Decision: the FAQ is a full separate route, `/faq`, not a section appended to the single-page landing flow, and there is no condensed "top questions" teaser section added to the landing page.**
+
+Rationale a skeptical stakeholder would need:
+- The landing page's section order is tuned as a conversion funnel: Problem → Services → How It Works → Proof → Pricing → Final CTA. Inserting an FAQ block anywhere in that sequence (most naturally between Pricing and Final CTA) puts a wall of objection-handling text directly in front of the page's one conversion moment — the audit-call form. That risks talking a warm visitor out of the room right before the ask.
+- FAQ content serves a different visitor intent than the landing page: it's reference material for someone who already has a specific question (pricing mechanics, data handling, cancellation terms) rather than a persuasion narrative. That content is better served as an on-demand, linkable, bookmarkable destination than as mandatory scroll-through content.
+- The existing Footer already ships a "FAQ" link under the Resources column (`src/components/sections/Footer.jsx`, currently a placeholder `href="#"`) — the information architecture already anticipated a distinct FAQ destination, not an anchor into the homepage.
+- Keeping the landing page's section count and flow exactly as documented in Sections 5.1–5.9 (unchanged) avoids re-litigating a page that is already fully specified and, per the Definition of Done at the end of that spec, considered complete.
+
+**New dependency required:** `react-router-dom` (pin to `^6.26.0` — the stable v6 line; do not adopt v7's data-router APIs for this addition, which aren't needed for two static routes and would add unrelated migration surface).
+
+**Routing structure:**
+- Wrap the existing render tree in `<BrowserRouter>`.
+- Extract the current landing-page body (everything currently inside `<main id="main-content">` in `src/App.jsx`: `Hero`, `ProblemSection`, `Services`, `HowItWorks`, `Testimonials`, `Pricing`, `FinalCTA`) into a `LandingPage` component.
+- Add a new `FaqPage` component (content and layout specified in 8.5–8.7 below).
+- `<Routes>` has exactly two entries: `path="/"` → `LandingPage`, `path="/faq"` → `FaqPage`.
+- `Navbar` and `Footer` continue to render once, outside/around `<Routes>`, exactly as they do today (already siblings of `<main>` in `App.jsx`) — they are shared chrome across both routes. `<main id="main-content">` now wraps `<Routes>` instead of wrapping the section list directly; the skip-link target and the mobile-menu `aria-hidden`/`visibility` logic already in `Navbar.jsx` (lines 77–94) continue to work unchanged since they operate on `#main-content` and `footer` regardless of which route is rendered inside `<main>`.
+- Document title: set via a simple `useEffect(() => { document.title = '<value>'; }, [])` in each page component (no new dependency needed for this). Landing page title: `"Anchorpoint AI — Agentic AI, grounded in your business."` FAQ page title: `"FAQ — Anchorpoint AI"`.
+- Cross-page anchor links (e.g., a `/faq` visitor clicking "Pricing" or the FAQ page's own "Book a Free Agent Audit" CTA, both of which must land on a section that only exists on `/`): use `<Link to="/#pricing">` / `<Link to="/#contact">` etc. React Router v6 does not auto-scroll to a URL hash on route change, so `LandingPage` must add one small effect that reuses the existing `useSmoothScrollTo` hook (`src/hooks/useSmoothScrollTo.js`, already in the codebase): on mount and whenever `location.hash` changes, if `location.hash` is non-empty, call `scrollTo(location.hash.slice(1))` once the section DOM has rendered. This is the only behavioral change required of `LandingPage` beyond the extraction described above.
+- **Deployment note (SPA fallback):** because `/faq` is now a real client-side route with no matching static file, direct navigation or a hard refresh on `/faq` must be rewritten to `index.html` by the host, or it will 404. Configure whichever applies to the eventual host: Netlify → add a `public/_redirects` file containing `/*  /index.html  200`; Vercel → add a `rewrites` entry in `vercel.json` sending `/(.*)` to `/index.html`; a custom Node/Nginx server → `try_files $uri /index.html` in the server block. This is a one-time config addition, not an open decision — whichever host is used, apply the matching rule above.
+
+### 8.2 Navbar integration (`src/components/sections/Navbar.jsx`)
+
+**Nav link order changes from 5 items to 6:** `Services`, `How It Works`, `Results`, `Pricing`, `FAQ`, `Contact` — `FAQ` is inserted immediately before `Contact` (the existing rightmost link, which leads into the booking form), keeping the CTA button as the final, rightmost element exactly as today.
+
+**Behavioral split by current route** (the same `NAV_LINKS`-driven list renders differently depending on `useLocation().pathname`):
+
+| Link | On `/` (landing) | On `/faq` |
+|---|---|---|
+| Services, How It Works, Results, Pricing, Contact | Unchanged from today: `<a href="#id">` + `useSmoothScrollTo`, in-page smooth scroll, scroll-spy drives the active-state underline (5.1/6.1, unchanged) | Rendered as `<Link to="/#id">`, a real navigation back to `/` that lands and then smooth-scrolls to that section via the hash effect in 8.1. Never show the active/current underline state on `/faq` — scroll-spy does not run here since none of these sections exist on this route. |
+| FAQ | Rendered as `<Link to="/faq">`. Never shows the active state on `/` — it's a plain, always-default-styled link (no scroll-spy target exists for it on this route). | Rendered as `<Link to="/faq">`. Shows the **current-page active state**: the exact same visual treatment already defined for scroll-spy active links in 5.1 (`brand-primary` text + 2px `brand-primary` underline offset 6px below the text) — driven here by `pathname === '/faq'` (a simple route match), not by scroll position. |
+| "Book a Call" button | Unchanged: scrolls to `#contact` on the current page | Renders as a `<Link to="/#contact">` styled identically to the existing primary-button CTA; lands on `/` and scrolls to the Final CTA form via the hash effect |
+
+**Mobile menu:** the same 6-link list (in the same order, `FAQ` between `Pricing` and `Contact`) replaces the current 5-link list inside the full-screen overlay (`Navbar.jsx` lines 176–206), with the identical route-aware behavior described in the table above applied per link. All existing mobile-menu mechanics — focus trap, `Escape` to close, portal to `document.body`, `aria-hidden`/`visibility` toggling of `#main-content` and `footer` — are unchanged and apply equally on both routes.
+
+### 8.3 Footer integration (`src/components/sections/Footer.jsx`)
+
+- `RESOURCE_LINKS`'s `"FAQ"` entry (currently `href="#"`, line 13/127 area) becomes a real `<Link to="/faq">`. No active-state treatment is needed here — the Footer has never shown a current-link indicator anywhere in the existing spec, and that stays true for the FAQ link too.
+- `COMPANY_LINKS` (`Services`, `How It Works`, `Results`, `Pricing`) gets the same route-aware treatment as the Navbar's equivalent links: on `/`, unchanged (`useSmoothScrollTo`); on `/faq`, rendered as `<Link to="/#id">` instead, since the Footer is shared chrome rendered on both routes exactly like the Navbar.
+- No other Footer copy or layout changes.
+
+### 8.4 Page identity
+
+**Page title (browser tab):** "FAQ — Anchorpoint AI"
+
+**URL:** `/faq`
+
+**Eyebrow label:** "QUESTIONS, ANSWERED"
+
+**H1:** "Straight answers before you book a call."
+
+**Subhead (Lead style):** "We wrote these because operators asked us — not because a template told us to. If something below doesn't cover it, ask us directly; a real person replies within one business day."
+
+### 8.5 FAQ content (copy)
+
+14 entries across 3 categories (within the "10–20 total" guidance). All 10 baseline SaaS-FAQ topics supplied in the brief are represented (mapped 1:1 below in source order: free trial → Q1, trial-ends → Q2, cancel anytime → Q3, monthly/annual billing → Q4, upgrade/downgrade → Q5, integrations → Q7, data residency → Q8, data export → Q9, API → Q10, startup/nonprofit discount → Q6), plus 4 added questions (Q11–Q14) that close gaps the existing Pricing/How-It-Works/Trust copy already implies but never states outright (onboarding technical burden, error handling, timeline, industry fit).
+
+#### Category 1 of 3 — "Pricing & Plans"
+
+**Q1. Do you offer a free trial?**
+A. Not in the software-trial sense — Anchorpoint isn't a tool you install and click around in. It's a team that audits your workflows and builds agents for you, so there's nothing to "trial" until we've actually looked at your business. What we do offer for free is the same 30-minute Agent Audit call from our homepage: we look at one real workflow together and tell you plainly whether an agent is a fit, before any money changes hands. If you want to go further, the Audit tier itself is a low-commitment way in — a scoped 2-week engagement, $2,800 one-time, with no ongoing contract attached.
+
+**Q2. What happens when my Audit engagement ends?**
+A. You keep everything. At the end of your 2-week Audit, you get the full workflow audit, the prioritized agent roadmap, and the ROI estimates — plus 30 days of email support to ask questions about it. If you decide to move into Growth or Partner, we carry that work forward instead of starting over. If you decide not to continue, the roadmap is yours to keep or hand to another vendor. Nothing is deleted, and nothing is held back.
+
+**Q3. Can I cancel anytime?**
+A. Yes. Growth has a 3-month minimum commitment — enough time to actually get an agent live and proven — and after that it's month-to-month; cancel whenever you want with a message to your named contact, no cancellation fee and no retention call. Partner engagements are custom-scoped, so the exact minimum term is set when we scope yours, but the same rule applies: no auto-renewal traps, no surprise fees.
+
+**Q4. Do you offer monthly and annual billing?**
+A. Growth and Partner both bill monthly by default. If you'd rather pay upfront, we offer annual prepay at roughly 17% off — about two months free — for either tier, with the same terms otherwise. The Audit tier is a one-time $2,800 engagement, so billing cadence doesn't apply there.
+
+**Q5. Can I upgrade or downgrade my plan?**
+A. Anytime. Moving up — say, from Audit into Growth, or Growth into Partner — takes effect immediately, and we pick up right where your last engagement left off instead of re-starting the audit. Moving down takes effect at the start of your next billing cycle, so you're never charged twice or cut off mid-cycle.
+
+**Q6. Is there a discount for startups or nonprofits?**
+A. Every Anchorpoint client is already an SMB, so we don't run a separate "startup tier" on top of that — the Audit tier ($2,800 one-time) is already priced to be the low-risk way for a small or early-stage team to start. What we do offer is a Community Impact Rate: verified 501(c)(3) nonprofits get 20% off any Growth engagement. Ask your point of contact about verification.
+
+#### Category 2 of 3 — "Data, Security & Integrations"
+
+**Q7. Does Anchorpoint integrate with the tools we already use?**
+A. That's the whole design principle — agents run inside your existing stack, not a separate app your team has to remember to open. We regularly integrate with helpdesks (Zendesk, Help Scout, Front), CRMs (HubSpot, Salesforce, Pipedrive), and everyday tools like Slack and Gmail/Outlook. Anything outside that list, we connect through Zapier or a direct webhook during the Design step of onboarding (see How It Works) — and we confirm every integration with you before anything goes live.
+
+**Q8. Where is our data stored, and is it compliant?**
+A. Your data stays in AWS, in the US East region by default, with an EU-West option available on request if you need data residency for GDPR. We maintain a SOC 2 Type II report available under NDA, and everything is encrypted in transit and at rest. This is also where "no black-box automations" becomes concrete: every agent action is logged, timestamped, and auditable, so you can always see exactly what data an agent touched and why.
+
+**Q9. What if we need to export our data?**
+A. Ask your named contact or drop a request in your dedicated Slack channel (Growth and Partner tiers) and we'll deliver a full export — workflow configs, agent logs, and roadmap documents — as CSV/JSON within 5 business days. Because agents run inside your own CRM, helpdesk, and inbox rather than a walled-garden platform, the bulk of "your data" never left your systems in the first place. That's the point of "no lock-in contracts": leaving costs you a conversation, not a migration.
+
+**Q10. Do you have an API?**
+A. Growth includes a read-only reporting API plus webhook notifications for agent activity, so you can pipe agent metrics into your own dashboards. Partner adds full API access — you can trigger and configure agents programmatically — plus dedicated webhook endpoints for your engineering team. The Audit tier doesn't include API access, since it's a one-time engagement with no live agents running yet.
+
+#### Category 3 of 3 — "Working With Anchorpoint"
+
+**Q11. How long until our first agent is live?**
+A. Most clients see a working pilot agent inside 3–4 weeks of kicking off a Growth engagement: about a week for Discover and Design (see How It Works), then the agent launches in a limited pilot on real tickets, leads, or tasks before we roll it out fully. Timeline shifts with the complexity of what you're automating, but we give you a specific date, in writing, before you sign anything.
+
+**Q12. What happens if an agent gets something wrong?**
+A. Every agent we design ships with guardrails and an escalation path to a human — that's part of the Design step, not an afterthought. When an agent hits a situation outside its guardrails, it hands off to your team instead of guessing. And because every action is logged (see "Where is our data stored"), we can always trace exactly what happened and tune the agent so it doesn't happen again. If something does go wrong, you call your named contact directly — never a support ticket queue.
+
+**Q13. Do we need in-house technical staff to work with you?**
+A. No. We built Anchorpoint for operators, not IT departments. Our team designs, builds, and integrates the agents; your team's job is just to tell us where the time is going and sign off on the workflow before we build it. The 2 live training sessions included in Growth are there to get your non-technical staff comfortable running alongside the agent, not to teach anyone to code.
+
+**Q14. Is our industry a good fit for agentic AI?**
+A. If your team spends real hours on repetitive digital work — answering routine tickets, chasing invoices, qualifying leads, moving data between systems — it's worth a look. We've deployed agents for dental groups, logistics operators, manufacturers, insurance agencies, and home services businesses, which is a wide enough spread that industry alone rarely disqualifies you. The honest answer comes from the free Agent Audit call, where we tell you plainly if the volume and repetition are there to justify it.
+
+#### Closing CTA row copy
+
+- H3 (see 8.6 for the visual/semantic note on this heading level): **"Still have questions?"**
+- Body copy: "We'd rather talk it through than have you guess. Ask us anything above on a real call — no script, no ticket queue, no obligation."
+- Primary button label (reuses the exact Hero CTA copy from 5.2 for consistency, since it is the same offer): **"Book a Free Agent Audit"** — routes to `/#contact`.
+- Secondary line next to the button, Small style, `gray-500`, `mailto:hello@anchorpoint.ai` link (underline + `brand-primary` on hover, matching the Footer's link hover treatment): **"or email hello@anchorpoint.ai"**
+
+### 8.6 Layout & responsive behavior
+
+**Overall page structure, top to bottom:** `Navbar` (shared, 8.2) → page header block → 3 category blocks (each: category heading + accordion list) → closing CTA band → `Footer` (shared, 8.3).
+
+**Page header block:**
+- Background `white`. Centered text block, max-width 640px (reusing the exact centered-header-block convention from 5.3–5.7), containing eyebrow → H1 → subhead in that order, `space-4` (16px) gaps between them, matching the Hero's internal spacing rhythm.
+- Padding: mirrors the Hero's role as "first thing under the nav" (5.2) — `space-24` (96px) top / `space-16` (64px) bottom at tablet and desktop (≥768px); `space-16` (64px) top / `space-8` (32px) bottom at mobile (<768px). Sits directly under the fixed nav bar exactly as Hero does, no extra gap.
+
+**Category blocks (×3):**
+- Each block: a category heading, then `space-8` (32px) gap (reusing the token already defined for "spacing between a heading and the content under it"), then the accordion list container.
+- Category heading is semantically an `<h2>` (correct document outline: H1 page title → H2 category → H3 question — see 8.7), but is *visually* styled using the existing H3 scale (28px/36px desktop, 24px/32px tablet, 22px/30px mobile, Space Grotesk 600, `gray-900`) rather than the full H2 scale. This is an intentional, explicit decoupling of semantic level from visual size — identical in spirit to how 5.9's footer treats copyright-line color — done here because repeating the full 40px H2 treatment three times on one page reads as oversized; no new type size is introduced, this only reuses the H3 row of the existing scale (Section 3) under an H2 tag.
+- Gap between category blocks: `space-16` (64px) at tablet/desktop, `space-8` (32px) at mobile — smaller than the `space-24` (96px) inter-section padding used between full landing-page sections, because these are sub-sections of one continuous page, not independent, alternating-background landing sections.
+- Content column max-width: **720px**, centered (`margin-inline: auto`) within the standard page container. This is intentionally wider than the 640px header-block convention (which is reserved for short eyebrow/H2/subhead intros) because this column holds full paragraph answers that need more breathing room — consistent with the spec's existing practice of defining purpose-specific pixel widths (640px header blocks, 560px form card, 480/360/280px hero illustration).
+
+**Accordion list container (per category):**
+- `white` background, `1px solid` `gray-200` border, `12px` border-radius (reusing the generic-card token from 6.4). No drop shadow (this is a list, not a floating card).
+- Each question is one full-width row inside the container. Rows are separated by a `1px solid` `gray-200` internal divider (reusing the exact divider convention from the Pricing tile, 5.7/6.5); the last row in a container has no trailing divider, since the container's own bottom border closes it off.
+- Row padding: `24px` vertical (`space-6`) at all breakpoints; horizontal padding `32px` (`space-8`) at tablet/desktop, `24px` (`space-6`) at mobile — both values reused directly from the existing card-padding tokens in Section 4, not new values.
+- Row content: question text left-aligned, a `ChevronDown` icon (lucide-react, 20px) right-aligned, vertically centered against the question text. See 8.7 for the full interactive spec.
+
+**Closing CTA band:**
+- Full-bleed `gray-50` background (reusing the exact background used to separate the Problem section from Hero, 5.3), sitting directly below the last category block with `space-16` (64px) top/bottom padding at tablet/desktop, `space-12` (48px) at mobile.
+- Centered content, max-width 640px: H3 "Still have questions?" (real H3, both semantically and visually this time — no decoupling needed since it appears once, not three times), body copy below it with `space-2` (8px) gap, then a CTA row with `space-4` (16px) top margin: primary button ("Book a Free Agent Audit") and the secondary mailto text link on the same row at desktop/tablet (24px gap between them, matching the Hero CTA row pattern from 5.2), stacking to full-width button + centered link below (16px gap) on mobile — this is the identical responsive pattern already specified for the Hero CTA row in 5.2, reused here rather than invented anew.
+
+**Responsive behavior summary:**
+
+| Breakpoint | Category headings | Accordion rows | Content column |
+|---|---|---|---|
+| Mobile (375–767px) | H3-visual scale at 22px/30px | Full width of container minus 20px side padding; 24px padding all sides | Fluid, no 720px cap needed (never reached) |
+| Tablet (768–1279px) | H3-visual scale at 24px/32px | Full width of the 720px-capped column; 24px/32px padding | Fluid up to 720px cap, centered |
+| Desktop (≥1280px) | H3-visual scale at 28px/36px | Full width of the 720px-capped column; 24px/32px padding | Fixed 720px, centered within the 1280px container |
+
+No column-count changes are needed at any breakpoint — the FAQ list is always single-column; only the outer container padding and heading sizes change per breakpoint, per the table above.
+
+### 8.7 Accordion / disclosure component — full interaction spec
+
+This is a real, keyboard- and screen-reader-operable disclosure widget, following the WAI-ARIA Authoring Practices "Accordion" pattern. **Multiple items may be expanded at the same time** (this is explicitly not an exclusive single-open accordion) — decided this way because FAQ readers frequently want to compare two answers at once (e.g., "monthly vs. annual billing" next to "upgrade/downgrade"), and an exclusive accordion would force them to lose their place.
+
+**Markup structure per item:**
+```
+<h3>
+  <button
+    id="faq-trigger-{n}"
+    aria-expanded="true|false"
+    aria-controls="faq-panel-{n}"
+  >
+    {question text}
+    <ChevronDown /> {/* decorative, aria-hidden="true" */}
+  </button>
+</h3>
+<div
+  id="faq-panel-{n}"
+  role="region"
+  aria-labelledby="faq-trigger-{n}"
+>
+  {answer text}
+</div>
+```
+- Question heading level is semantically `<h3>` (correct outline under the category's `<h2>` — see 8.6), but is *visually* styled using the existing H4 scale (20px/28px desktop, 19px/27px tablet, 18px/26px mobile, Space Grotesk 600) — the same decoupling technique used for category headings in 8.6, applied one level down, so that 14 stacked questions don't render at full 28px H3 weight.
+- Answer text uses the existing Body scale (16px/26px, Inter 400, `gray-700`) unchanged across all breakpoints.
+
+**Animation technique (must be both accessible and smooth):** the panel `<div>` uses a CSS `grid-template-rows` transition between `0fr` (collapsed) and `1fr` (expanded), `200ms ease`, with an inner wrapper `div` set to `overflow: hidden` around the answer text so content doesn't reflow visibly during the transition. In addition to the grid-row animation, set `aria-hidden="true"` on the panel's inner content wrapper whenever `aria-expanded="false"` on its trigger, so collapsed answer text is correctly removed from the accessibility tree (not just visually clipped) while still allowing the smooth height animation. Because answer paragraphs contain no interactive elements (no links, no buttons), there is no tab-order leakage to guard against inside a collapsed-but-still-in-DOM panel.
+
+**States (all transitions `150ms ease` unless noted):**
+
+| State | Visual spec |
+|---|---|
+| Default (collapsed, not hovered/focused) | Row background `transparent` (container background `white` shows through); question text `gray-900`; chevron `gray-500`, pointing down, no rotation |
+| Hover | Row background `gray-50`; question text and chevron colors unchanged from default; `150ms ease` background-color transition; cursor `pointer` |
+| Focus-visible (keyboard focus on the trigger `<button>`) | `2px solid` `brand-primary` outline, `2px` offset, `4px` border-radius — identical to the nav-link focus ring already specified in 6.1, reused here for consistency |
+| Expanded | Question text switches to `brand-primary` (signals "open," matching the existing convention that `brand-primary` text means "active/current" used for nav active-link state in 5.1/6.1); chevron rotates `180deg` over `200ms ease` (transform only, no color change beyond matching the question text's new `brand-primary`); row background returns to `transparent`/`white` unless also hovered, in which case `gray-50` hover still applies on top |
+| Collapsed (after having been open) | Identical to Default — no "recently closed" residual styling |
+| Disabled | N/A — no FAQ item is ever disabled; this state does not apply to this component |
+| Loading | N/A — content is static and pre-rendered; there is no async loading state for this component |
+
+**Keyboard interaction (complete, per WAI-ARIA Accordion pattern):**
+- `Tab` / `Shift+Tab`: moves focus linearly between trigger buttons in visual (DOM) order, then into the closing CTA button, then into the Footer — expanded panels add no additional tab stops, since answer text has no focusable content.
+- `Enter` or `Space` (trigger button focused): toggles that item's `aria-expanded` value and its panel's visibility, via native `<button>` activation semantics — no custom key handling required for this part.
+- `Down Arrow` (trigger button focused): moves focus to the next question's trigger button. Does not wrap past the last item.
+- `Up Arrow` (trigger button focused): moves focus to the previous question's trigger button. Does not wrap past the first item.
+- `Home`: moves focus to the first trigger button on the page (first question of Category 1), regardless of which category currently has focus.
+- `End`: moves focus to the last trigger button on the page (last question of Category 3).
+- Focus order matches visual/reading order exactly at every breakpoint; no `tabindex` values other than the default `0` (native button) are used anywhere in this component.
+
+### 8.8 Accessibility requirements (page-level)
+
+- Heading outline for the page must read, in order: `<h1>` "Straight answers before you book a call." → `<h2>` "Pricing & Plans" → three `<h3>` questions → `<h2>` "Data, Security & Integrations" → four `<h3>` questions → `<h2>` "Working With Anchorpoint" → four `<h3>` questions → `<h3>` "Still have questions?" (a real H3, not decoupled, since it appears once). No heading level is skipped anywhere on the page.
+- Every trigger button carries `aria-expanded` (boolean, kept in sync with actual panel visibility) and `aria-controls` pointing to its panel's `id`, per 8.7's markup structure — this is the mechanism both the frontend engineer and QA should check against; a row that merely *looks* expanded/collapsed without these two attributes wired correctly does not meet this spec.
+- Each panel carries `role="region"` and `aria-labelledby` pointing back to its trigger's `id`, so assistive technology announces "Q1, region" style landmarks correctly when navigating by region.
+- The decorative `ChevronDown` icon is `aria-hidden="true"` and carries no independent label; the question text inside the `<button>` is the button's full accessible name (do not add a separate `aria-label` that duplicates or overrides the visible question text).
+- Collapsed-panel content is excluded from the accessibility tree via `aria-hidden="true"` on the inner content wrapper (see 8.7's animation technique) — verify with a screen reader that collapsed answers are not announced when using "next heading" or "next region" navigation commands.
+- Focus order equals DOM order equals visual order at all three breakpoints (375/768/1280) — no CSS-only reordering (e.g., `flex-direction: row-reverse`, `order`) is used anywhere on this page, so keyboard/AT navigation order can never diverge from what's visually presented.
+- Route-level focus management: on navigating to `/faq` via a `Link` click (whether from Navbar, Footer, or the landing page's cross-links), focus must move to the page's `<h1>` (via a `ref` + `.focus()` call on mount, with `tabIndex={-1}` on the `h1` so it's programmatically focusable without adding it to the regular tab order). This matches standard SPA route-change accessibility practice and ensures screen reader users landing on `/faq` aren't left with focus stranded on the nav link they just activated.
+- The existing skip link ("Skip to main content", already in `App.jsx`) continues to work unchanged on `/faq` since `#main-content` still wraps whichever page is active.
+- Color/contrast: this page introduces no new foreground/background text pairings beyond ones already verified in Section 2's contrast table (`gray-900`/`gray-700` on `white`, `white` on `brand-primary-dark`/`brand-primary` for the shared Navbar/Footer chrome, `brand-primary` on `white` for the expanded-question and active-nav-link states, `gray-500` on `white` for the secondary mailto link, `gray-500` on `gray-50` for the closing-band body copy — this last pairing is a lighter background than pure white but a *lighter* background only ever increases contrast versus the already-passing `gray-500`/`white` ratio of 4.8:1, so it remains AA-pass without recomputing). No new color pairing is introduced.
+
+### 8.9 Icons used on this page
+
+All from `lucide-react` (already a project dependency, per Section 7's imagery direction — no new icon library introduced).
+
+| Location | Icon | Color |
+|---|---|---|
+| Accordion row, collapsed | `ChevronDown` | `gray-500` |
+| Accordion row, expanded | `ChevronDown`, rotated 180deg via CSS transform (same icon, no swap to `ChevronUp`, to avoid an extra icon import for a purely rotational state change) | `brand-primary` |
+
+No other new imagery is introduced on this page — no new illustration, no photography, matching the rest of the site.
+
+### 8.10 Definition of done — FAQ page verification
+
+- Integration approach is decided and justified (separate `/faq` route, no landing-page teaser section), with the exact new dependency (`react-router-dom` `^6.26.0`), routing structure, cross-page anchor-scroll mechanism, and SPA-fallback hosting config all specified — nothing left for the engineer to decide. ✅
+- Navbar and Footer integration is fully specified per link, per route (table in 8.2), including the FAQ link's current-page active state and the existing 5 links' route-aware behavior when visited from `/faq`. ✅
+- All 10 required baseline FAQ topics are represented (see mapping at the top of 8.5), rewritten in full in Anchorpoint AI's Grounded/Confident/Plainspoken voice with real, specific details (exact prices, tier names, percentages, timeframes) pulled from this same document's existing Pricing (5.7) and Trust Paragraph (Section 1) content — no bracketed placeholders remain. 4 additional questions close gaps implied elsewhere in the spec. ✅
+- Full layout description and responsive behavior at 375px/768px/1280px are specified for the page header, category blocks, accordion list, and closing CTA band. ✅
+- The accordion component's default/hover/focus-visible/expanded/collapsed states are fully specified with exact colors/transitions, disabled/loading are explicitly marked not-applicable with reasoning (rather than silently omitted), and the full keyboard interaction set (Tab, Enter/Space, Arrow keys, Home/End) is specified per the WAI-ARIA Accordion pattern. ✅
+- Accessibility requirements name the exact markup contract (`aria-expanded` + `aria-controls` + `role="region"` + `aria-labelledby`), the exact heading-level outline, and route-change focus management — precise enough for QA to verify pass/fail without further interpretation. ✅
+- No new color, font, or spacing token is introduced; every value used on this page traces back to an existing token or an already-established purpose-specific pixel width in Sections 2–7. ✅
