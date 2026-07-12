@@ -3,6 +3,7 @@
  * Supports default / hover / focus-visible / active / disabled / loading states.
  */
 export default function Button({
+  as: Tag = 'button',
   variant = 'primary',
   loading = false,
   disabled = false,
@@ -61,12 +62,19 @@ export default function Button({
             : 'border-brand-primary text-brand-primary hover:bg-brand-primary/[0.08] active:bg-brand-primary/[0.14] cursor-pointer',
         ].join(' ');
 
+  // `as` lets this component render as something other than a native
+  // <button> (e.g. react-router's <Link>) while keeping the exact same
+  // visual states — used for CTAs that are real navigations (cross-page
+  // anchor links per spec §8.1) rather than in-page actions. Native
+  // button-only attributes (type/disabled/aria-disabled/aria-busy) only
+  // make sense — and are only valid HTML — on an actual <button>.
+  const isNativeButton = Tag === 'button';
+
   return (
-    <button
-      type={type}
-      disabled={isDisabled}
-      aria-disabled={isDisabled}
-      aria-busy={loading}
+    <Tag
+      {...(isNativeButton
+        ? { type, disabled: isDisabled, 'aria-disabled': isDisabled, 'aria-busy': loading }
+        : {})}
       className={`${base} ${width} ${variantClasses} ${className}`}
       {...rest}
     >
@@ -78,6 +86,6 @@ export default function Button({
         />
       )}
       {loading ? loadingLabel : children}
-    </button>
+    </Tag>
   );
 }

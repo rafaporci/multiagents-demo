@@ -1,18 +1,27 @@
 # TEST_REPORT.md
-### Anchorpoint AI landing page — QA test plan, execution log, and sign-off
+### Anchorpoint AI marketing site — QA test plan, execution log, and sign-off
 Tested against `DESIGN_SPEC.md` (source of truth) with `IMPLEMENTATION_NOTES.md` as context for
 documented judgment calls. Environment: Windows 11, Node v24.14.1, npm 11.11.0, Chromium via
 Playwright 1.61, Vitest 2.1 + RTL + jest-axe.
 
-**Verdict: READY TO SHIP.** All critical/high/medium bugs from the first QA pass (Bugs #1–#4) have
-been fixed and independently re-verified in a second pass. One low-severity bug (#5) remains open
-by deliberate, documented choice and does not block shipping. Details and full matrix below.
+**Current overall verdict (after Round 3, FAQ page feature): READY TO SHIP.** Zero critical/high
+bugs open anywhere in the app. One new medium bug was found in this round (mobile-menu FAQ active
+state, see Round 3 §2) and remains open, plus the one pre-existing low bug (#5) from Round 1/2.
+Neither blocks shipping per the project's own done-bar (only open critical/high blocks ship). See
+**"Round 3 — FAQ Page Feature"** below (new section, dated 2026-07-11) for the full FAQ-feature
+test matrix, bug log, and sign-off. Sections 0–7 immediately below are preserved unchanged as the
+historical record of the original landing-page QA (Pass 1/Pass 2, pre-FAQ).
 
 **Revision history:**
-- **Pass 1 (initial QA):** found 1 critical, 3 high, 1 medium, 1 low bug. Verdict: NOT READY.
-- **Pass 2 (this update):** re-verified the frontend engineer's fixes for Bugs #1–#4 against real
+- **Pass 1 (initial QA, landing page only):** found 1 critical, 3 high, 1 medium, 1 low bug. Verdict: NOT READY.
+- **Pass 2 (landing page fix re-verification):** re-verified the frontend engineer's fixes for Bugs #1–#4 against real
   browser behavior (not just code review). All 4 confirmed fixed with no regressions. Bug #5
   confirmed still open (unfixed by design, see Bug #5 below). Verdict flipped to READY TO SHIP.
+- **Round 3 (2026-07-11, new FAQ page feature, DESIGN_SPEC.md §8):** full requirement matrix,
+  functional/responsive/accessibility pass on the new `/faq` route and its Navbar/Footer
+  integration, plus a landing-page regression spot-check. Found 1 new medium bug (mobile-menu FAQ
+  link missing its route-aware active state) and reconfirmed Bug #5 is still open/unchanged (not
+  regressed). Verdict: READY TO SHIP (no critical/high bugs open). See the dedicated section below.
 
 ---
 
@@ -576,3 +585,327 @@ open row being the accepted low-severity Bug #5.
 With zero open critical/high/medium bugs, this ships. Bug #5 should be tracked as a follow-up
 (retag `<h3>`→`<h4>` for service/step/pricing-tier titles alongside a matching update to the
 `#pricing h3` selector in `e2e/smoke.spec.js` in the same commit) but is not a shipping blocker.
+
+---
+---
+
+# Round 3 — FAQ Page Feature (tested 2026-07-11)
+
+### Anchorpoint AI — QA of the new `/faq` route against `DESIGN_SPEC.md` §8 (v1.1 addendum)
+
+Tested against `DESIGN_SPEC.md` §8 in full (lines 497–729), plus a regression spot-check of §5–6
+(landing page) since the Navbar and Footer both received new route-aware logic and a 6th nav link.
+`IMPLEMENTATION_NOTES.md` items #18–22 ("FAQ page addendum — judgment calls") were read and used to
+avoid flagging documented, reasonable judgment calls as bugs.
+
+**Environment:** Windows 11, Node (repo-pinned toolchain), Chromium via Playwright 1.61, Vitest 2.1
++ RTL + jest-axe. Tested against both `npm run dev` (Vite dev server, :5173) and a real production
+build (`npm run build` + `npm run preview`, :4173) — the latter specifically to verify the SPA
+fallback behavior is not an artifact of Vite dev server's own history-API fallback.
+
+**Round 3 verdict: READY TO SHIP.** Zero critical/high bugs found in the new FAQ feature or in the
+landing-page regression pass. One new medium bug (Bug FAQ-1) was found and is open; one pre-existing
+low bug (Bug #5, carried over from Round 1/2, unrelated to this feature) was reconfirmed open and
+unregressed. Neither is a critical/high bug, so per this project's own done-bar the verdict is
+READY TO SHIP, with Bug FAQ-1 flagged for a fast follow-up.
+
+## R3.0 — What was run
+
+| Tool | Command | Result |
+|---|---|---|
+| Vitest + RTL + jest-axe | `npm test` | **16/16 pass** (12 new FAQ tests in `src/test/FaqPage.test.jsx` + 4 pre-existing in `src/test/App.test.jsx`) |
+| Production build | `npm run build` | succeeds, 0 errors, 0 warnings |
+| Playwright (`e2e/smoke.spec.js`) | `npm run test:e2e` | **23/23 pass** (9 FAQ-specific tests added to the pre-existing 14) |
+| Independent QA scripts (ad hoc, not committed to the repo — written and run fresh by QA, not authored by the engineer) against the **production build** served via `npm run preview` | 3 standalone Playwright scripts, ~30 assertions total | See breakdown below |
+
+The independent scripts were written from scratch by QA (not reused from `e2e/smoke.spec.js`) to
+avoid rubber-stamping the engineer's own test assertions, and were run against the **built,
+production-served** app (`vite preview`, not `vite dev`) specifically to verify the SPA-fallback
+claim (§8.1) holds outside of Vite dev server's own built-in history-API fallback, which would
+otherwise mask a real deployment-config gap. Checks covered: heading-outline walk + duplicate-id
+scan, full `aria-controls`/`role=region`/`aria-labelledby` wiring for all 14 rows, collapsed-panel
+`aria-hidden` toggling, real forward-Tab walk through all 14 triggers into the closing CTA and
+Footer, route-aware nav/footer link hrefs and `aria-current` on both routes, mobile-menu link hrefs
+on `/faq`, cross-page CTA landing/scroll checks for three different target sections (not just
+`#contact`/`#pricing`), a tablet-width (768–1279px) nav-wrap regression sweep run specifically
+*on* `/faq` (not just `/`), and full-page screenshots at 375/768/1280px reviewed directly. All
+passed except the one confirmed bug below (two initial false "failures" were artifacts of the ad
+hoc script itself — text truncation breaking a regex, and capturing the mount-triggered
+route-focus effect rather than a genuine forward-Tab result — both re-verified clean on a corrected
+re-run, not real defects).
+
+No source files under `src/` were modified by QA. All ad hoc verification scripts and screenshots
+were written to the QA scratch directory, not the repo.
+
+## R3.1 — Requirement matrix (DESIGN_SPEC.md §8)
+
+Legend: **A** = automated (Vitest/Playwright, committed or ad hoc), **M** = manual/visual review. Status: PASS / FAIL.
+
+### §8.1 Integration decision / routing
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-1 | `<BrowserRouter>` wraps the app; `Routes` has exactly `/` → `LandingPage`, `/faq` → `FaqPage` | Code review + navigation check | A+M | PASS |
+| FAQ-2 | Navbar/Footer render once, outside `<Routes>`, shared across both routes | Code review + render check (both routes show identical chrome) | M | PASS |
+| FAQ-3 | Document title: landing = full tagline string; FAQ = `"FAQ — Anchorpoint AI"` | `document.title` check both routes | A | PASS |
+| FAQ-4 | Cross-page anchor links (`/#pricing`, `/#contact`, etc.) land and smooth-scroll via `LandingPage`'s hash effect | Click from `/faq` to Pricing, Contact, **and Results** (3 different targets, not just the two spec examples) | A | PASS (all 3) |
+| FAQ-5 | SPA fallback: direct navigation / hard refresh on `/faq` does not 404 | `page.goto('/faq')` + reload on dev server; separately, HTTP status check against the **production build** via `vite preview` | A | PASS (200 on both; `public/_redirects` present and correctly formatted for the stated Netlify target) |
+
+### §8.2 Navbar integration
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-6 | 6 links in order, FAQ inserted immediately before Contact | Render check, both routes | A | PASS |
+| FAQ-7 | On `/`: 5 non-FAQ links unchanged (anchor + scroll-spy); FAQ renders as plain `<Link>`, never active | Code + runtime check | A+M | PASS |
+| FAQ-8 | On `/faq`: 5 non-FAQ links become `<Link to="/#id">`, never show active/underline state | Href + computed-style check | A | PASS |
+| FAQ-9 | FAQ link shows current-page active state (brand-primary text + underline) driven by `pathname === '/faq'`, desktop nav | `aria-current` + computed color check | A | PASS (`rgb(47,93,159)` = `#2F5D9F`, `aria-current="page"`) |
+| FAQ-10 | "Book a Call" renders as route-aware `<Link to="/#contact">` on `/faq`, scroll-anchor on `/` | Href check both routes | A | PASS |
+| FAQ-11 | Mobile menu: same 6-link list, same order, identical route-aware href behavior per link | Open mobile menu on `/faq`, inspect all hrefs | A | PASS (all hrefs correct) |
+| FAQ-12 | Mobile menu: FAQ link shows the same current-page active state when the menu is opened on `/faq` ("identical route-aware behavior... applied per link") | Open mobile menu on `/faq`, inspect FAQ link's computed color/underline + `aria-current` | A+M | **FAIL — Bug FAQ-1 (medium)** |
+| FAQ-13 | Nav does not wrap/overflow at 768–1279px on the `/faq` route (regression risk: FAQ route renders `<Link>` elements instead of `<a>`, plus a 6th link) | Width sweep 768/780/800/820/850/1000/1279px, wordmark height check | A | PASS (28px single-line at every width) |
+
+### §8.3 Footer integration
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-14 | Footer "FAQ" (Resources column) is a real `<Link to="/faq">`, no active-state needed | Click-through + href check | A | PASS |
+| FAQ-15 | Footer Company links (Services/How It Works/Results/Pricing) route-aware: unchanged on `/`, `<Link to="/#id">` on `/faq` | Href check both routes | A | PASS |
+
+### §8.4 Page identity
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-16 | Tab title "FAQ — Anchorpoint AI" | `document.title` check | A | PASS |
+| FAQ-17 | URL `/faq` | Navigation check | A | PASS |
+| FAQ-18 | Eyebrow "QUESTIONS, ANSWERED", H1 "Straight answers before you book a call.", subhead exact copy | Render check | A | PASS |
+
+### §8.5 Content (copy)
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-19 | 14 Q&A entries across exactly 3 categories (6/4/4), verbatim copy, in source order | Render check (all 14 questions present) + spot-diff of rendered text against spec source for all 14 answers | A+M | PASS |
+| FAQ-20 | Category headings exact: "Pricing & Plans", "Data, Security & Integrations", "Working With Anchorpoint" | Render check | A | PASS |
+| FAQ-21 | Closing CTA: H3 "Still have questions?", body copy, primary button "Book a Free Agent Audit" → `/#contact`, secondary mailto line "or email hello@anchorpoint.ai" | Render + click-through check | A | PASS |
+
+### §8.6 Layout & responsive behavior (375/768/1280px)
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-22 | Page header: centered, max-width 640px; padding 96/64px top/bottom tablet+desktop, 64/32px mobile, sitting directly under the fixed nav with no extra gap | Computed padding check (mobile: nav 64px + section 64px = `pt-128px` measured; tablet/desktop: nav 72px + section 96px = `pt-168px` measured) | A+M | PASS |
+| FAQ-23 | Category heading: semantically `<h2>`, visually H3 type scale (28/24/22px across breakpoints) | Tag + computed font-size check | A+M | PASS |
+| FAQ-24 | Gap between category blocks: 64px tablet/desktop, 32px mobile | Class/computed-margin check | M | PASS |
+| FAQ-25 | Content column max-width 720px, centered | Computed width check | M | PASS |
+| FAQ-26 | Accordion container: white bg, 1px gray-200 border, 12px radius, no shadow | Style check | M | PASS |
+| FAQ-27 | Row padding: 24px vertical all breakpoints; 32px horizontal tablet/desktop, 24px mobile | Computed padding check | M | PASS |
+| FAQ-28 | Closing CTA band: gray-50 bg, 64px top/bottom tablet/desktop, 48px mobile | Computed padding + bg check | M | PASS |
+| FAQ-29 | No horizontal overflow at 375/768/1280px on `/faq` | `scrollWidth` vs `clientWidth` | A | PASS (all 3, both dev and prod build) |
+| FAQ-30 | Full-page visual review at 375/768/1280px — no overlap/broken layout | Full-page screenshots reviewed directly | M | PASS (see R3.4) |
+
+### §8.7 Accordion component
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-31 | Markup: `<h3><button aria-expanded aria-controls>` + `<div role="region" aria-labelledby>` per item | DOM structure check, all 14 rows | A | PASS |
+| FAQ-32 | Question visually styled at H4 scale (20/19/18px across breakpoints), semantically `<h3>` | Tag + computed font-size check | A+M | PASS |
+| FAQ-33 | Multiple items can be open simultaneously (not exclusive) | Open item 1, then item 2, confirm both stay `aria-expanded="true"` | A | PASS |
+| FAQ-34 | `grid-template-rows` 0fr↔1fr animation, inner `overflow:hidden` wrapper, no visible reflow jank | Style/structure review, visual review | M | PASS |
+| FAQ-35 | Visual states: default (transparent/gray-900/gray-500 chevron), hover (gray-50 bg), focus-visible (2px brand-primary outline, 2px offset — same as nav-link ring, **not** the amber button ring), expanded (brand-primary text, chevron rotated 180°), collapsed-after-open identical to default | Screenshot review (hover+focus+expanded captured together) + class inspection | A+M | PASS |
+| FAQ-36 | Disabled/loading explicitly not applicable (no code path exists for either) | Code review | M | PASS (N/A confirmed, correctly unimplemented) |
+| FAQ-37 | Tab/Shift+Tab moves linearly through all 14 triggers in DOM order, then into the closing CTA button, then Footer; no extra tab stops from collapsed/expanded panels | Full forward-Tab walk (real browser, production build) capturing every focused element's id in sequence | A | PASS (exact `faq-trigger-1`…`faq-trigger-14` in order, then CTA link, then mailto link) |
+| FAQ-38 | Enter/Space toggle `aria-expanded` via native `<button>` semantics | Keyboard activation check | A | PASS |
+| FAQ-39 | Down Arrow moves focus to next trigger, does not wrap past the last item | Keyboard nav check at last item | A | PASS |
+| FAQ-40 | Up Arrow moves focus to previous trigger, does not wrap past the first item | Keyboard nav check at first item | A | PASS |
+| FAQ-41 | Home moves focus to the first trigger on the page regardless of current category | Focus item mid-list (category 2), press Home | A | PASS |
+| FAQ-42 | End moves focus to the last trigger on the page regardless of current category | Focus item mid-list, press End | A | PASS |
+
+### §8.8 Accessibility (page-level)
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-43 | Heading outline: exactly one h1 → 3×h2 (categories) → h3s for all 14 questions + 1 closing "Still have questions?" (+3 shared Footer h3s, unchanged), no level skipped | Full heading-level walk, both dev and prod build | A | PASS |
+| FAQ-44 | Every trigger has `aria-expanded` kept in sync + `aria-controls` pointing to a real panel id | DOM query across all 14 rows | A | PASS |
+| FAQ-45 | Every panel has `role="region"` + `aria-labelledby` pointing back to its trigger's id | DOM query across all 14 rows | A | PASS |
+| FAQ-46 | `ChevronDown` is `aria-hidden="true"`; button's accessible name is the question text only (no overriding `aria-label`) | DOM/axe check | A | PASS |
+| FAQ-47 | Collapsed panel's inner content wrapper carries `aria-hidden="true"`; toggles to `false` when expanded | Direct attribute check before/after toggle | A | PASS |
+| FAQ-48 | Focus order = DOM order = visual order at 375/768/1280px; no CSS-only reordering used | Tab-walk + visual screenshot cross-check at all 3 widths | A+M | PASS |
+| FAQ-49 | Route-change focus management: clicking a `Link` to `/faq` (Navbar or Footer) moves focus to the `<h1>` | Click-through from `/` via both Navbar and Footer FAQ links, check `document.activeElement` | A | PASS |
+| FAQ-50 | Skip-to-content link continues to work on `/faq` | Focus + activate skip link on `/faq` | M | PASS |
+| FAQ-51 | No new color/background pairing introduced beyond §2's approved table | Cross-check every text/bg pair used on the page against `tailwind.config.js` hex values | M | PASS |
+| FAQ-52 | Zero critical/serious automated a11y violations (jest-axe) on `/faq` | `npm test` (`FaqPage.test.jsx`) | A | PASS |
+
+### §8.9 Icons
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| FAQ-53 | `ChevronDown`, gray-500 collapsed / brand-primary + rotate-180 expanded, no icon swap | Class/color check | M | PASS |
+
+### Landing page regression (§5–6, since Navbar/Footer/Button changed)
+
+| # | Requirement | Test case | Type | Status |
+|---|---|---|---|---|
+| REG-1 | Nav link order/count: 6 links (Services, How It Works, Results, Pricing, **FAQ**, Contact) | Render check on `/` | A | PASS |
+| REG-2 | Scroll-spy active-state still drives the underline correctly on `/` (unaffected by FAQ's route-based active logic) | Scroll + `aria-current` check | A | PASS |
+| REG-3 | Mobile menu open/close, Escape-to-close, focus-trap (forward + Shift+Tab) still work on `/` | Full Playwright re-run of the pre-existing suite | A | PASS |
+| REG-4 | Nav CTA "Book a Call" gap remains a fixed ~24px from the last link (Bug #4 fix, Round 1/2) | Bounding-box measurement at 1280px | A | PASS |
+| REG-5 | Nav does not wrap at 768–1279px on `/` (Bug #3 fix, Round 1/2) — re-checked with the 6th link now present | Width sweep, wordmark height check | A | PASS |
+| REG-6 | Final CTA form validation + mock success | Playwright form flow | A | PASS |
+| REG-7 | Footer newsletter form mock success | Playwright form flow | A | PASS |
+| REG-8 | No horizontal overflow at 375/768/1280 on `/` | `scrollWidth` check | A | PASS |
+| REG-9 | Exactly one h1, no skipped heading levels on `/` | Heading-level walk | A | PASS |
+| REG-10 | Bug #5 (`<h3>` vs. spec `<h4>` on Services/HowItWorks/PricingTile titles) still open, unchanged, not silently fixed or regressed | `grep` for `<h4` in the three affected files | A | CONFIRMED still open (0 matches), unrelated to this round, not a regression |
+
+**Matrix totals (Round 3): 63 requirement rows (53 FAQ-specific + 10 regression). 62 PASS / 1 FAIL**
+(FAQ-12, Bug FAQ-1 below). REG-10 is a confirmation-of-known-state row, not a new pass/fail
+judgment on this round's work.
+
+## R3.2 — Bug log (Round 3)
+
+### Bug FAQ-1 — MEDIUM — Mobile-menu "FAQ" link never shows the current-page active state (and has no `aria-current`) when the overlay is opened on `/faq`
+
+**Component:** `src/components/sections/Navbar.jsx`, `renderMobileLink()` (lines ~169–189) and the
+shared `mobileLinkClasses` constant (line ~128).
+
+**Root cause:** `mobileLinkClasses` is a single fixed string (`text-gray-900`, no active variant)
+applied identically to every link in the mobile overlay regardless of route or link type.
+`renderMobileLink()`'s `link.isRoute` branch (the FAQ link) renders unconditionally with this fixed
+class and no `aria-current` attribute:
+```js
+if (link.isRoute) {
+  return (
+    <Link to="/faq" onClick={closeMenu} className={mobileLinkClasses}>
+      {link.label}
+    </Link>
+  );
+}
+```
+This is inconsistent with `renderDesktopLink()`'s equivalent branch, which correctly applies
+`aria-current={isFaqRoute ? 'page' : undefined}` and `linkClasses(isFaqRoute)` (brand-primary text
++ underline) to the same link.
+
+**Steps to reproduce:**
+1. Navigate to `/faq` (any width <768px, e.g. 375×812).
+2. Tap the hamburger to open the mobile menu.
+3. Look at the "FAQ" entry in the stacked link list.
+
+**Expected (DESIGN_SPEC.md §8.2):** The Navbar integration table states the FAQ link "Shows the
+current-page active state: the exact same visual treatment already defined for scroll-spy active
+links in 5.1 (`brand-primary` text + 2px `brand-primary` underline offset 6px below the text) —
+driven here by `pathname === '/faq'`" and explicitly that the mobile menu list uses "the identical
+route-aware behavior described in the table above applied per link."
+
+**Actual:** The "FAQ" entry renders in plain `gray-900` (identical to every other link — Services,
+How It Works, Results, Pricing, Contact), with no underline and no `aria-current` attribute at all,
+even though the user is currently on `/faq` and the desktop nav correctly shows this same link as
+active in this exact scenario. Confirmed via code review (`mobileLinkClasses` is a single fixed
+`text-gray-900` string with no active variant, applied unconditionally to the FAQ entry — never
+`text-brand-primary` / `rgb(47, 93, 159)`) and via direct screenshot review of the open mobile
+overlay on `/faq` — the "FAQ" entry is visually indistinguishable from every other link.
+
+**Impact:** A mobile user who opens the nav menu while already on the FAQ page gets zero indication
+— visual or programmatic (no `aria-current` for screen readers either) — that they're currently
+viewing that page, unlike the desktop experience. This is a concrete, 100%-reproducible deviation
+from an explicit spec instruction, on every viewport under 768px. It does not break navigation
+(the link still correctly closes the menu and stays on `/faq`, or is a no-op-equivalent same-page
+link) and does not affect the 5 non-FAQ links (which correctly show no active state on `/faq`,
+matching spec) or the desktop nav (which is fully correct).
+
+**Suggested direction (not a fix, just orientation):** `mobileLinkClasses` needs to become a
+function (like `linkClasses`) that accepts an `isActive` boolean and applies `text-brand-primary`
++ an underline treatment when true; `renderMobileLink()`'s `link.isRoute` branch should pass
+`isFaqRoute` through to it and add `aria-current={isFaqRoute ? 'page' : undefined}`, mirroring
+`renderDesktopLink()`'s already-correct implementation.
+
+**Status:** OPEN (new this round, not yet fixed)
+
+### Bug #5 (carried over from Round 1/2) — LOW — `<h3>` used instead of spec's `<h4>` for service/step/pricing-tier titles
+
+Re-confirmed still open and unchanged this round (0 `<h4>` elements found in `Services.jsx`,
+`HowItWorks.jsx`, `PricingTile.jsx`) — not a regression, not silently fixed, unrelated to the FAQ
+feature. See the original Bug #5 entry above for full details; no new action taken or needed by
+this round's QA.
+
+## R3.3 — Accessibility audit summary (Round 3)
+
+- **Automated (jest-axe, `/faq`):** 0 critical/serious violations.
+- **Heading structure (`/faq`):** exactly one `<h1>`; h1 → h2×3 (categories) → h3×14 (questions) +
+  h3×1 (closing "Still have questions?") + h3×3 (shared Footer columns, unchanged) = 18 h3s total;
+  no h4/h5/h6 anywhere on the page (both category headings and question triggers are correctly
+  decoupled semantic-h2/h3-visual-smaller-scale per §8.6/§8.7); no level ever skipped. Verified via
+  both the committed Vitest test and an independent ad hoc real-browser walk against the production
+  build.
+- **ARIA wiring:** all 14 triggers correctly carry `aria-expanded` (kept in sync) and
+  `aria-controls`; all 14 panels correctly carry `role="region"` and `aria-labelledby` pointing back
+  to their trigger's id; no duplicate element ids found anywhere on the page.
+- **Keyboard operability:** full Tab/Shift+Tab walk through all 14 triggers in exact DOM/visual
+  order confirmed on the real production build (not just jsdom); Enter/Space toggle via native
+  button semantics; Arrow Up/Down move focus without wrapping at either end; Home/End correctly
+  jump to the true first/last trigger on the page across all 3 category boundaries (tested by
+  focusing a mid-list item in category 2 and pressing both keys) — this is the specific keyboard
+  requirement most likely to have been implemented per-category by mistake, and it was independently
+  re-verified correct.
+- **Focus-visible ring:** accordion triggers correctly use the nav-link/`brand-primary` ring (2px,
+  2px offset) per §8.7's explicit instruction to reuse 6.1's ring — not the amber button ring used
+  elsewhere on the site; confirmed both by class inspection and a direct screenshot of a
+  keyboard-focused row.
+- **Route-change focus management:** confirmed via real client-side navigation (clicking the Navbar
+  "FAQ" link, not just `page.goto()`) that focus lands on the `<h1>` immediately after the route
+  change, and that the `<h1>` (tabIndex=-1) never re-enters the sequential Tab order afterward.
+- **Collapsed content removed from the a11y tree:** the inner answer-text wrapper correctly toggles
+  `aria-hidden` between `"true"` (collapsed) and `"false"` (expanded), verified via direct attribute
+  read before/after a click.
+- **Skip-to-content link:** confirmed still functional on `/faq` (shared `#main-content` target).
+- **Color contrast:** no new foreground/background pairing is introduced by this page; every pairing
+  used (`gray-900`/`gray-700`/`gray-500` on `white`, `brand-primary` on `white` for the expanded
+  question/active-nav-link state, `white` on `brand-primary-dark` for shared chrome) already exists
+  in §2's approved AA table, and `tailwind.config.js` hex values were re-confirmed to match the
+  spec's token table exactly.
+- **One gap found:** the mobile-menu FAQ active-state/`aria-current` omission, Bug FAQ-1 above —
+  this is the only accessibility-relevant deviation found in the whole FAQ feature.
+
+## R3.4 — Responsiveness audit summary (Round 3)
+
+- **375px / 768px / 1280px:** no horizontal overflow on `/faq` at any of the three required widths,
+  verified on both the dev server and the production build.
+- **Full-page screenshots reviewed directly at all 3 widths:** page header, 3 category blocks (all
+  14 rows), and closing CTA band all render with correct spacing, no overlap, no clipped text, and
+  correct column/stacking behavior at each breakpoint. The FAQ nav link correctly shows its active
+  (brand-primary text + underline) state in the desktop/tablet screenshots at 768px and 1280px.
+- **Nav-wrap regression check specific to `/faq`:** because the FAQ route renders `<Link>` elements
+  in place of some `<a>` tags and a 6th nav link now exists everywhere, the tablet nav-wrap
+  regression (Bug #3, Round 1/2) was independently re-swept at 768/780/800/820/850/1000/1279px
+  specifically on `/faq` (not just `/`) — held at a consistent single-line 28px wordmark height at
+  every width checked, no regression.
+- **Accordion visual states:** default/hover/focus-visible/expanded states all captured together in
+  one screenshot and match the spec's exact color/rotation requirements (§8.7's state table).
+- **Mobile menu on `/faq`:** overlay renders correctly as a full-screen white dialog with all 6
+  links + "Book a Call" button, matching the pre-existing (Round 1/2-fixed) mobile menu behavior;
+  the one defect found here is not a layout/overflow issue but the active-state omission logged as
+  Bug FAQ-1.
+
+## R3.5 — Final sign-off (Round 3)
+
+**READY TO SHIP.**
+
+- 63 requirement-matrix rows exercised this round (53 FAQ-specific + 10 landing-page regression
+  rows); **62 PASS**, 1 FAIL (Bug FAQ-1, medium).
+- **Bug FAQ-1 (MEDIUM, new this round):** mobile-menu "FAQ" nav link never shows its route-driven
+  active state or `aria-current` when the overlay is opened on `/faq`, unlike the (correct) desktop
+  nav. Open, not a shipping blocker per this project's done-bar (only open critical/high blocks
+  ship), but should be fixed promptly since it's a concrete, explicit-spec, 100%-reproducible
+  accessibility/UX gap affecting every user under 768px who opens the nav while on the FAQ page. See
+  Bug FAQ-1 above for the exact fix direction (mirror `renderDesktopLink`'s already-correct
+  `isActive`/`aria-current` handling into `renderMobileLink`).
+- **Bug #5 (LOW, carried over from Round 1/2):** reconfirmed still open, unchanged, unrelated to
+  this feature — not a regression.
+- **No critical or high-severity bugs found** anywhere in the new FAQ feature, its Navbar/Footer
+  integration, or the landing-page regression pass.
+- **No regressions found** in the landing page's nav order/count, scroll-spy, mobile menu
+  mechanics, nav-wrap/CTA-gap fixes from Round 1/2, or either form's validation/success flow — all
+  independently re-verified against real browser behavior on both `/` and (where applicable) `/faq`.
+- All 10 baseline FAQ topics plus the 4 added questions are present with exact spec copy, correctly
+  grouped into 3 categories, and the full WAI-ARIA accordion keyboard/ARIA contract (§8.7/§8.8) is
+  correctly implemented with only the one gap noted above.
+
+**Ships as-is.** Recommend Bug FAQ-1 be picked up as the very next fix (small, isolated,
+well-specified — see the suggested direction above) rather than deferred indefinitely like Bug #5,
+since it's newly introduced rather than a pre-existing, already-accepted trade-off.
