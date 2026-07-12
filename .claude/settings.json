@@ -1,0 +1,32 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:chatwith.tools)",
+      "WebSearch",
+      "Read(//tmp/**)",
+      "Bash(python3 -)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/react-router-dom/package.json'\\).version\\)\")",
+      "Bash(npx playwright *)",
+      "Bash(git status *)",
+      "Bash(curl -s -o /dev/null -w \"landing: %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"faq: %{http_code}\\\\n\" http://localhost:5173/faq)",
+      "Bash(curl -s http://localhost:5173/faq)",
+      "Bash(node \"C:\\\\Users\\\\*\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\*\")",
+      "Bash(node _tmp_shots.cjs)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID * //F)",
+      "Bash(node \"C:/Users/rafap/AppData/Local/Temp/claude/*\")",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr create *)"
+    ]
+  }
+}

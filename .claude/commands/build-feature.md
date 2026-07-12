@@ -9,21 +9,21 @@ Follow these phases **in strict sequence**. Do not skip, reorder, or parallelize
 
 ## Phase 1 — Design
 
-Invoke the `senior-product-designer` subagent (Agent tool) with the feature description above. Do not proceed to Phase 2 until:
+Invoke the `senior-product-designer` subagent (from agents sub-folder, DO NOT use a generic agent) with the feature description above. Do not proceed to Phase 2 until:
 
 - A design spec file (e.g. `DESIGN_SPEC.md`) exists on disk — confirm with Read yourself, don't take the agent's self-report on faith.
 - It covers copy, colors, type, spacing, layout, responsive behavior, and every component state for every required section, with nothing left as "TBD" or "engineer's choice" (unless the spec explicitly and intentionally reserves a decision for engineering).
 
 ## Phase 2 — Implementation
 
-Invoke the `senior-frontend-engineer` subagent with the completed spec's file path. Do not proceed to Phase 3 until:
+Invoke the `senior-frontend-engineer` subagent (from agents sub-folder, DO NOT use a generic agent)  with the completed spec's file path. Do not proceed to Phase 3 until:
 
 - `README.md` and `IMPLEMENTATION_NOTES.md` exist (the latter documenting any judgment calls the spec left open).
 - You have independently run install/dev/build/test commands yourself and confirmed they are clean — do not trust the engineer's self-report of "done."
 
 ## Phase 3 — QA bug loop
 
-Invoke the `qa-engineer` subagent to test the running app against the design spec — not personal taste. Then:
+Invoke the `qa-engineer` subagent (from agents sub-folder, DO NOT use a generic agent) to test the running app against the design spec — not personal taste. Then:
 
 - Act as the go-between: relay every critical/high bug back to the frontend engineer yourself rather than letting QA and the engineer message each other unsupervised, unless you've deliberately decided speed matters more than that checkpoint.
 - After each fix, re-invoke QA to independently re-verify the fix and check for regressions in what previously passed — never mark a bug fixed on the engineer's say-so alone.
